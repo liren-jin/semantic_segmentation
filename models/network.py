@@ -284,8 +284,8 @@ class AleatoricERFNet(NetworkWrapper):
 
     def validation_step(self, batch, batch_idx):
         true_label = batch["anno"]
-        final_prob, pred_label, _ = self.get_predictions(batch["data"])
-        loss = self.loss_fn(final_prob, true_label)
+        mean_logits, pred_label, _ = self.get_predictions(batch["data"])
+        loss = self.loss_fn(mean_logits, true_label)
 
         confusion_matrix = torchmetrics.functional.confusion_matrix(
             pred_label, true_label, num_classes=self.num_classes, normalize=None
@@ -298,14 +298,14 @@ class AleatoricERFNet(NetworkWrapper):
 
     def test_step(self, batch, batch_idx):
         true_label = batch["anno"]
-        final_prob, pred_label, _ = self.get_predictions(batch["data"])
-        loss = self.loss_fn(final_prob, true_label)
+        mean_logits, pred_label, _ = self.get_predictions(batch["data"])
+        loss = self.loss_fn(mean_logits, true_label)
 
         confusion_matrix = torchmetrics.functional.confusion_matrix(
             pred_label, true_label, num_classes=self.num_classes, normalize=None
         )
         calibration_info = metrics.compute_calibration_info(
-            final_prob, true_label, num_bins=20
+            self.softmax(mean_logits), true_label, num_bins=20
         )
         self.log("test:loss", loss, prog_bar=True)
         return {
@@ -329,7 +329,7 @@ class AleatoricERFNet(NetworkWrapper):
             uncertainties=aleatoric_unc,
         )
 
-    @torch.no_grad
+    @torch.no_grad()
     def get_predictions(self, data):
         self.model.eval()
         est_seg, est_std = self.forward(data)
@@ -341,7 +341,7 @@ class AleatoricERFNet(NetworkWrapper):
             final_prob * torch.log(final_prob + 10 ** (-8)), dim=1
         ) / torch.log(torch.tensor(self.num_classes))
 
-        return final_prob, pred_label, aleatoric_unc
+        return mean_logits, pred_label, aleatoric_unc
 
     def track_uncertainty_stats(self, std):
         self.log("Variance/TrainMin", torch.min(std))

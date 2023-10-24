@@ -157,7 +157,7 @@ class Decoder(nn.Module):
 class AleatoricDecoder(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-
+        self.num_classes = num_classes
         self.layers = nn.ModuleList()
 
         self.layers.append(UpsamplerBlock(128, 64))

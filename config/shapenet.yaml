@@ -23,12 +23,13 @@ train:
     weight_decay: 0.001
     num_mc_aleatoric: 50
     patience: 500
+    visualization_interval: 50
 
     transformations:
-        random_rotation:
-          min_angle: -180
-          max_angle:  180
-          step_size:   2
+        # random_rotation:
+        #   min_angle: -180
+        #   max_angle:  180
+        #   step_size:   2
         # random_crop:
         #   height:
         #   width: 200

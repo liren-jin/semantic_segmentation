@@ -79,9 +79,11 @@ class ShapenetDataset(Dataset):
         split_file = os.path.join(data_rootdir, f"{mode}.lst")
         assert os.path.exists(split_file)
         with open(split_file, "r") as f:
-            scene_list = [x.strip() for x in f.readlines()]
+            scene_id_list = [x.strip() for x in f.readlines()]
 
-        scene_path = [os.path.join(data_rootdir, scene) for scene in scene_list]
+        scene_path = [
+            os.path.join(data_rootdir, "scene" + scene_id) for scene_id in scene_id_list
+        ]
 
         self.image_files = []
         self.anno_files = []
