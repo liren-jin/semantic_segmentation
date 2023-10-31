@@ -30,9 +30,6 @@ def get_model(cfg) -> LightningModule:
         raise RuntimeError(f"{type(cfg)} not a valid config")
 
 
-def load_pretrained_model(config_path: str, checkpoint_path: str) -> LightningModule:
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    with open(config_path, "r") as config_file:
-        cfg = yaml.safe_load(config_file)
-
-    return get_model(cfg).load_from_checkpoint(checkpoint_path, cfg=cfg).to(device)
+def load_pretrained_model(checkpoint_path: str) -> LightningModule:
+    cfg = torch.load(checkpoint_path)["hyper_parameters"]["cfg"]
+    return get_model(cfg).load_from_checkpoint(checkpoint_path).eval()
