@@ -1,5 +1,5 @@
 experiment:
-    id: 'shapenet_training'
+    id: 'shapenet_training_balance'
 
 ##Data
 data:

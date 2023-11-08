@@ -3,20 +3,13 @@ from os.path import join, dirname, abspath
 from pytorch_lightning import Trainer
 from pytorch_lightning import loggers as pl_loggers
 import yaml
-
+import torch
 from datasets import get_data_module
-from models import get_model
+from models import load_pretrained_model
 
 
 @click.command()
 ### Add your options here
-@click.option(
-    "--config",
-    "-c",
-    type=str,
-    help="path to the config file (.yaml)",
-    default=join(dirname(abspath(__file__)), "config", "config.yaml"),
-)
 @click.option(
     "--checkpoint",
     "-ckpt",
@@ -24,15 +17,12 @@ from models import get_model
     help="path to checkpoint file (.ckpt)",
     required=True,
 )
-def main(config, checkpoint):
-    with open(config, "r") as config_file:
-        cfg = yaml.safe_load(config_file)
+def main(checkpoint):
+    cfg = torch.load(checkpoint)["hyper_parameters"]["cfg"]
 
     # Load data and model
     data = get_data_module(cfg)
-
-    model = get_model(cfg)
-    model = model.load_from_checkpoint(checkpoint, cfg=cfg)
+    model = load_pretrained_model(checkpoint)
 
     tb_logger = pl_loggers.TensorBoardLogger(
         "experiments/" + cfg["experiment"]["id"], default_hp_metric=False

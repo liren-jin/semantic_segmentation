@@ -25,7 +25,7 @@ def get_model(cfg) -> LightningModule:
                 cfg,
             )
         else:
-            RuntimeError(f"{name} model not implemented")
+            raise RuntimeError(f"{name} model not implemented")
     else:
         raise RuntimeError(f"{type(cfg)} not a valid config")
 

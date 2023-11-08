@@ -32,15 +32,17 @@ class NetworkWrapper(LightningModule):
 
         if loss_name == Losses.CROSS_ENTROPY:
             return CrossEntropyLoss(
+                weight=torch.tensor([0.3, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]),
                 ignore_index=self.ignore_index
                 if self.ignore_index is not None
-                else -100
+                else -100,
             )
         elif loss_name == Losses.NLL:
             return NLLLoss(
+                weight=torch.tensor([0.3, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]),
                 ignore_index=self.ignore_index
                 if self.ignore_index is not None
-                else -100
+                else -100,
             )
         else:
             raise RuntimeError(f"Loss {loss_name} not available!")
@@ -74,7 +76,7 @@ class NetworkWrapper(LightningModule):
 
         self.track_confusion_matrix(conf_matrices, stage="Test")
 
-        fig_ = metrics.compute_calibration_plots(outputs)
+        fig_ = metrics.compute_calibration_plots(outputs, num_bins=50)
         self.logger.experiment.add_figure(
             "UncertaintyStats/Calibration", fig_, self.current_epoch
         )
@@ -106,7 +108,7 @@ class NetworkWrapper(LightningModule):
 
         ece = -1.0
         if calibration_info_list is not None:
-            ece = metrics.ece_from_calibration_info(calibration_info_list, num_bins=20)
+            ece = metrics.ece_from_calibration_info(calibration_info_list, num_bins=50)
 
         self.log(f"{stage}/Precision", precision)
         self.log(f"{stage}/Recall", recall)
@@ -293,7 +295,7 @@ class AleatoricERFNet(NetworkWrapper):
         if batch_idx % self.vis_interval == 0:
             self.visualize_step(batch)
 
-        self.log("validation:Loss", loss, prog_bar=True)
+        self.log("validation:loss", loss, prog_bar=True)
         return {"conf_matrix": confusion_matrix, "loss": loss}
 
     def test_step(self, batch, batch_idx):
@@ -305,7 +307,7 @@ class AleatoricERFNet(NetworkWrapper):
             pred_label, true_label, num_classes=self.num_classes, normalize=None
         )
         calibration_info = metrics.compute_calibration_info(
-            self.softmax(mean_logits), true_label, num_bins=20
+            self.softmax(mean_logits), true_label, num_bins=50
         )
         self.log("test:loss", loss, prog_bar=True)
         return {
