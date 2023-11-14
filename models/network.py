@@ -11,7 +11,7 @@ from pytorch_lightning.core.lightning import LightningModule
 
 import utils.utils as utils
 from constants import Losses, IGNORE_INDEX
-from models.loss import CrossEntropyLoss, NLLLoss
+from models.loss import CrossEntropyLoss, NLLLoss, AleatoricLoss
 from utils import metrics
 from models.erfnet import ERFNetModel, AleatoricERFNetModel
 from models.unet import UNetModel, AleatoricUNetModel
@@ -39,6 +39,13 @@ class NetworkWrapper(LightningModule):
             )
         elif loss_name == Losses.NLL:
             return NLLLoss(
+                weight=torch.tensor([0.3, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]),
+                ignore_index=self.ignore_index
+                if self.ignore_index is not None
+                else -100,
+            )
+        elif loss_name == Losses.ALEATORIC:
+            return AleatoricLoss(
                 weight=torch.tensor([0.3, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]),
                 ignore_index=self.ignore_index
                 if self.ignore_index is not None
@@ -268,16 +275,15 @@ class AleatoricERFNet(NetworkWrapper):
         dist = torch.distributions.normal.Normal(noise_mean, noise_std)
         for i in range(self.num_mc_aleatoric):
             epsilon = dist.sample()
-            sampled_seg = seg + torch.mul(std, epsilon)
-            sampled_logits[i] = sampled_seg
-        mean_logits = torch.mean(sampled_logits, dim=0)
-        return mean_logits
+            sampled_logits[i] = seg + torch.mul(std, epsilon)
+        # mean_logits = torch.mean(sampled_logits, dim=0)
+        return sampled_logits
 
     def training_step(self, batch, batch_idx):
         true_label = batch["anno"]
         est_seg, est_std = self.forward(batch["data"])
-        mean_logits = self.sample_from_aleatoric_model(est_seg, est_std)
-        loss = self.loss_fn(mean_logits, true_label)
+        sampled_logits = self.sample_from_aleatoric_model(est_seg, est_std)
+        loss = self.loss_fn(sampled_logits, true_label)
 
         self.track_uncertainty_stats(est_std)
         self.track_gradient_norms()
@@ -335,7 +341,9 @@ class AleatoricERFNet(NetworkWrapper):
     def get_predictions(self, data):
         self.model.eval()
         est_seg, est_std = self.forward(data)
-        mean_logits = self.sample_from_aleatoric_model(est_seg, est_std)
+        sampled_logits = self.sample_from_aleatoric_model(est_seg, est_std)
+        mean_logits = torch.mean(sampled_logits, dim=0)
+
         final_prob = self.softmax(mean_logits)
         _, pred_label = torch.max(final_prob, dim=1)
 

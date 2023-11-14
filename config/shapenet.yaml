@@ -1,5 +1,5 @@
 experiment:
-    id: 'shapenet_training_balance'
+    id: 'shapenet_training_new'
 
 ##Data
 data:
@@ -62,5 +62,5 @@ model:
     name: 'erfnet_w_aleatoric' # erfnet, erfnet_w_aleatoric
     task: 'classification' # regression, classification
     num_classes: 7
-    loss: 'xentropy' # xentropy, nll
+    loss: 'aleatoric' # xentropy, nll
 

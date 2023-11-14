@@ -172,6 +172,7 @@ class AleatoricDecoder(nn.Module):
             16, num_classes + 1, 2, stride=2, padding=0, output_padding=0, bias=True
         )
         self.output_std_fn = nn.Softplus(beta=1)
+        # self.output_std_fn = nn.ReLU()
 
     def forward(self, input):
         output = input
@@ -179,8 +180,9 @@ class AleatoricDecoder(nn.Module):
         for layer in self.layers:
             output = layer(output)
 
-        output_seg, output_std = self.output_conv(output).split(self.num_classes, 1)
-        output_std = self.output_std_fn(output_std) + 10 ** (-8)
+        output = self.output_conv(output)
+        output_seg, output_std = output.split(self.num_classes, 1)
+        output_std = self.output_std_fn(output_std) + 1e-8
 
         return output_seg, output_std
 
