@@ -16,6 +16,7 @@ data:
 
 ##Training
 train:
+    network_type: "erfnet"
     n_gpus: 1
     num_workers: 4
     max_epoch: 500

@@ -240,26 +240,23 @@ class NetworkWrapper(LightningModule):
         return self.cfg["train"]["weight_decay"]
 
 
-class UNet(NetworkWrapper):
+class Network(NetworkWrapper):
     pass
 
 
-class AleatoricUNet(NetworkWrapper):
-    pass
-
-
-class ERFNet(NetworkWrapper):
-    pass
-
-
-class AleatoricERFNet(NetworkWrapper):
+class AleatoricNetwork(NetworkWrapper):
     def __init__(self, cfg):
-        super(AleatoricERFNet, self).__init__(cfg)
+        super(AleatoricNetwork, self).__init__(cfg)
 
         self.save_hyperparameters()
         self.num_mc_aleatoric = self.cfg["train"]["num_mc_aleatoric"]
         self.vis_interval = self.cfg["train"]["visualization_interval"]
-        self.model = AleatoricERFNetModel(self.num_classes)
+
+        network_type = self.cfg["train"]["network_type"]
+        if network_type == "erfnet":
+            self.model = AleatoricERFNetModel(self.num_classes)
+        elif network_type == "unet":
+            self.model = AleatoricUNetModel(self.num_classes)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
