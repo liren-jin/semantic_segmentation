@@ -1,31 +1,19 @@
 import torch
-import yaml
-from constants import Models
-from models.network import ERFNet, AleatoricERFNet, UNet, AleatoricUNet
+from models.network import Network, AleatoricNetwork
 from pytorch_lightning.core.lightning import LightningModule
 
 
 def get_model(cfg) -> LightningModule:
-    name = cfg["model"]["name"]
+    network_type = cfg["model"]["type"]
+    network_name = cfg["model"]["name"]
+
     if isinstance(cfg, dict):
-        if name == Models.ERFNET:
-            return ERFNet(
-                cfg,
-            )
-        elif name == Models.ERFNET_W_ALEATORIC:
-            return AleatoricERFNet(
-                cfg,
-            )
-        elif name == Models.UNET:
-            return UNet(
-                cfg,
-            )
-        elif name == Models.UNET_W_ALEATORIC:
-            return AleatoricUNet(
-                cfg,
-            )
+        if network_type == "network":
+            return Network(network_name, cfg)
+        elif network_type == "aleatoric_network":
+            return AleatoricNetwork(network_name, cfg)
         else:
-            raise RuntimeError(f"{name} model not implemented")
+            raise RuntimeError(f"{network_type} not implemented")
     else:
         raise RuntimeError(f"{type(cfg)} not a valid config")
 

@@ -245,26 +245,25 @@ class Network(NetworkWrapper):
 
 
 class AleatoricNetwork(NetworkWrapper):
-    def __init__(self, cfg):
+    def __init__(self, name, cfg):
         super(AleatoricNetwork, self).__init__(cfg)
 
         self.save_hyperparameters()
         self.num_mc_aleatoric = self.cfg["train"]["num_mc_aleatoric"]
         self.vis_interval = self.cfg["train"]["visualization_interval"]
-
-        network_type = self.cfg["train"]["network_type"]
-        if network_type == "erfnet":
-            self.model = AleatoricERFNetModel(self.num_classes)
-        elif network_type == "unet":
-            self.model = AleatoricUNetModel(self.num_classes)
         self.softmax = nn.Softmax(dim=1)
+
+        if name == "erfnet":
+            self.model = AleatoricERFNetModel(self.num_classes)
+        elif name == "unet":
+            self.model = AleatoricUNetModel(self.num_classes)
 
     def forward(self, x):
         est_seg, est_std = self.model(x)
         return est_seg, est_std
 
     def sample_from_aleatoric_model(self, seg, std):
-        sampled_logits = torch.zeros(
+        sampled_probs = torch.zeros(
             (self.num_mc_aleatoric, *seg.size()), device=self.device
         )
         noise_mean = torch.zeros(seg.size(), device=self.device)
@@ -272,15 +271,16 @@ class AleatoricNetwork(NetworkWrapper):
         dist = torch.distributions.normal.Normal(noise_mean, noise_std)
         for i in range(self.num_mc_aleatoric):
             epsilon = dist.sample()
-            sampled_logits[i] = seg + torch.mul(std, epsilon)
-        # mean_logits = torch.mean(sampled_logits, dim=0)
-        return sampled_logits
+            sampled_logits = seg + torch.mul(std, epsilon)
+            sampled_probs[i] = self.softmax(sampled_logits)
+        mean_probs = torch.mean(sampled_probs, dim=0)
+        return mean_probs
 
     def training_step(self, batch, batch_idx):
         true_label = batch["anno"]
         est_seg, est_std = self.forward(batch["data"])
-        sampled_logits = self.sample_from_aleatoric_model(est_seg, est_std)
-        loss = self.loss_fn(sampled_logits, true_label)
+        mean_probs = self.sample_from_aleatoric_model(est_seg, est_std)
+        loss = self.loss_fn(mean_probs, true_label)
 
         self.track_uncertainty_stats(est_std)
         self.track_gradient_norms()
@@ -289,8 +289,8 @@ class AleatoricNetwork(NetworkWrapper):
 
     def validation_step(self, batch, batch_idx):
         true_label = batch["anno"]
-        mean_logits, pred_label, _ = self.get_predictions(batch["data"])
-        loss = self.loss_fn(mean_logits, true_label)
+        mean_probs, pred_label, _ = self.get_predictions(batch["data"])
+        loss = self.loss_fn(mean_probs, true_label)
 
         confusion_matrix = torchmetrics.functional.confusion_matrix(
             pred_label, true_label, num_classes=self.num_classes, normalize=None
@@ -303,14 +303,14 @@ class AleatoricNetwork(NetworkWrapper):
 
     def test_step(self, batch, batch_idx):
         true_label = batch["anno"]
-        mean_logits, pred_label, _ = self.get_predictions(batch["data"])
-        loss = self.loss_fn(mean_logits, true_label)
+        mean_probs, pred_label, _ = self.get_predictions(batch["data"])
+        loss = self.loss_fn(mean_probs, true_label)
 
         confusion_matrix = torchmetrics.functional.confusion_matrix(
             pred_label, true_label, num_classes=self.num_classes, normalize=None
         )
         calibration_info = metrics.compute_calibration_info(
-            self.softmax(mean_logits), true_label, num_bins=50
+            mean_probs, true_label, num_bins=50
         )
         self.log("test:loss", loss, prog_bar=True)
         return {
@@ -338,17 +338,15 @@ class AleatoricNetwork(NetworkWrapper):
     def get_predictions(self, data):
         self.model.eval()
         est_seg, est_std = self.forward(data)
-        sampled_logits = self.sample_from_aleatoric_model(est_seg, est_std)
-        mean_logits = torch.mean(sampled_logits, dim=0)
+        mean_probs = self.sample_from_aleatoric_model(est_seg, est_std)
 
-        final_prob = self.softmax(mean_logits)
-        _, pred_label = torch.max(final_prob, dim=1)
+        _, pred_label = torch.max(mean_probs, dim=1)
 
         aleatoric_unc = -torch.sum(
-            final_prob * torch.log(final_prob + 10 ** (-8)), dim=1
+            mean_probs * torch.log(mean_probs + 10 ** (-8)), dim=1
         ) / torch.log(torch.tensor(self.num_classes))
 
-        return mean_logits, pred_label, aleatoric_unc
+        return mean_probs, pred_label, aleatoric_unc
 
     def track_uncertainty_stats(self, std):
         self.log("Variance/TrainMin", torch.min(std))

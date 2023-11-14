@@ -63,6 +63,7 @@ class UNetModel(nn.Module):
 class AleatoricUNetModel(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
+        self.num_classes = num_classes
 
         self.dconv_down1 = double_conv(3, 64)
         self.dconv_down2 = double_conv(64, 128)
@@ -79,7 +80,7 @@ class AleatoricUNetModel(nn.Module):
         self.conv_last = nn.Conv2d(64, num_classes + 1, 1)
         self.output_std_fn = nn.Softplus(beta=1)
 
-    def forward(self, input):
+    def forward(self, x):
         conv1 = self.dconv_down1(x)
         x = self.maxpool(conv1)
 

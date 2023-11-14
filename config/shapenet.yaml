@@ -1,5 +1,5 @@
 experiment:
-    id: 'shapenet_training_new'
+    id: 'unet_training_final'
 
 ##Data
 data:
@@ -16,7 +16,6 @@ data:
 
 ##Training
 train:
-    network_type: "erfnet"
     n_gpus: 1
     num_workers: 4
     max_epoch: 500
@@ -27,10 +26,15 @@ train:
     visualization_interval: 50
 
     transformations:
-        # random_rotation:
-        #   min_angle: -180
-        #   max_angle:  180
-        #   step_size:   2
+        random_rotation:
+          min_angle: -180
+          max_angle:  180
+          step_size:   2
+        color_jitter:
+         brightness: 0.1 # 0.0-1.0
+         contrast: 0.1 # 0.0-1.0
+         saturation: 0.1 # 0.0-1.0
+         hue: 0.1 # -0.5-0.5
         # random_crop:
         #   height:
         #   width: 200
@@ -38,11 +42,6 @@ train:
         #   height:
         #   width: 344
         #   keep_aspect_ratio: true
-        color_jitter:
-         brightness: 0.1 # 0.0-1.0
-         contrast: 0.1 # 0.0-1.0
-         saturation: 0.1 # 0.0-1.0
-         hue: 0.1 # -0.5-0.5
 
 val:
     transformations:
@@ -60,8 +59,8 @@ test:
 
 ##Network
 model:
-    name: 'erfnet_w_aleatoric' # erfnet, erfnet_w_aleatoric
-    task: 'classification' # regression, classification
+    type: 'aleatoric_network' # network, aleatoric_network
+    name: "unet" # erfnet, unet
     num_classes: 7
-    loss: 'aleatoric' # xentropy, nll
+    loss: 'nll' # xentropy, nll
 
