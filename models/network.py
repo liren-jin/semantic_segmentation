@@ -64,11 +64,19 @@ class NetworkWrapper(LightningModule):
 
     def validation_epoch_end(self, outputs):
         conf_matrices = [tmp["conf_matrix"] for tmp in outputs]
+        calibration_info_list = [tmp["calibration_info"] for tmp in outputs]
         self.track_evaluation_metrics(
             conf_matrices,
             stage="Validation",
+            calibration_info_list=calibration_info_list,
         )
         self.track_confusion_matrix(conf_matrices, stage="Validation")
+
+        fig_ = metrics.compute_calibration_plots(outputs, num_bins=50)
+        self.logger.experiment.add_figure(
+            "UncertaintyStats/Calibration", fig_, self.current_epoch
+        )
+
         self.vis_step = 0
 
     def test_epoch_end(self, outputs):
@@ -295,11 +303,18 @@ class AleatoricNetwork(NetworkWrapper):
         confusion_matrix = torchmetrics.functional.confusion_matrix(
             pred_label, true_label, num_classes=self.num_classes, normalize=None
         )
+        calibration_info = metrics.compute_calibration_info(
+            mean_probs, true_label, num_bins=50
+        )
         if batch_idx % self.vis_interval == 0:
             self.visualize_step(batch)
 
         self.log("validation:loss", loss, prog_bar=True)
-        return {"conf_matrix": confusion_matrix, "loss": loss}
+        return {
+            "conf_matrix": confusion_matrix,
+            "loss": loss,
+            "calibration_info": calibration_info,
+        }
 
     def test_step(self, batch, batch_idx):
         true_label = batch["anno"]

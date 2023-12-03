@@ -29,12 +29,12 @@ train:
         random_rotation:
           min_angle: -180
           max_angle:  180
-          step_size:   2
+          step_size:   90
         color_jitter:
-         brightness: 0.1 # 0.0-1.0
-         contrast: 0.1 # 0.0-1.0
-         saturation: 0.1 # 0.0-1.0
-         hue: 0.1 # -0.5-0.5
+         brightness: 0.2 # 0.0-1.0
+         contrast: 0.2 # 0.0-1.0
+         saturation: 0.2 # 0.0-1.0
+         hue: 0.2 # -0.5-0.5
         # random_crop:
         #   height:
         #   width: 200
@@ -45,10 +45,15 @@ train:
 
 val:
     transformations:
-        # resize:
-        #   height:
-        #   width: 344
-        #   keep_aspect_ratio: true
+        random_rotation:
+          min_angle: -180
+          max_angle:  180
+          step_size:   90
+        color_jitter:
+         brightness: 0.2 # 0.0-1.0
+         contrast: 0.2 # 0.0-1.0
+         saturation: 0.2 # 0.0-1.0
+         hue: 0.2 # -0.5-0.5
 
 test:
     transformations:
