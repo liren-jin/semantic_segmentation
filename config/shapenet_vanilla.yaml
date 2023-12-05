@@ -29,12 +29,12 @@ train:
         random_rotation:
           min_angle: -180
           max_angle:  180
-          step_size:   90
+          step_size:   2
         color_jitter:
-         brightness: 0.2 # 0.0-1.0
-         contrast: 0.2 # 0.0-1.0
-         saturation: 0.2 # 0.0-1.0
-         hue: 0.2 # -0.5-0.5
+         brightness: 0.1 # 0.0-1.0
+         contrast: 0.1 # 0.0-1.0
+         saturation: 0.1 # 0.0-1.0
+         hue: 0.1 # -0.5-0.5
         # random_crop:
         #   height:
         #   width: 200
@@ -45,15 +45,10 @@ train:
 
 val:
     transformations:
-        random_rotation:
-          min_angle: -180
-          max_angle:  180
-          step_size:   90
-        color_jitter:
-         brightness: 0.2 # 0.0-1.0
-         contrast: 0.2 # 0.0-1.0
-         saturation: 0.2 # 0.0-1.0
-         hue: 0.2 # -0.5-0.5
+        # resize:
+        #   height:
+        #   width: 344
+        #   keep_aspect_ratio: true
 
 test:
     transformations:
@@ -64,8 +59,8 @@ test:
 
 ##Network
 model:
-    type: 'aleatoric_network' # network, aleatoric_network
+    type: 'network' # network, aleatoric_network
     name: "unet" # erfnet, unet
     num_classes: 7
-    loss: 'nll' # xentropy, nll
+    loss: 'xentropy' # xentropy, nll
 

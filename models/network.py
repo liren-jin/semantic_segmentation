@@ -249,7 +249,99 @@ class NetworkWrapper(LightningModule):
 
 
 class Network(NetworkWrapper):
-    pass
+    def __init__(self, name, cfg):
+        super(Network, self).__init__(cfg)
+
+        self.save_hyperparameters()
+        self.num_mc_aleatoric = self.cfg["train"]["num_mc_aleatoric"]
+        self.vis_interval = self.cfg["train"]["visualization_interval"]
+        self.softmax = nn.Softmax(dim=1)
+
+        if name == "erfnet":
+            self.model = ERFNetModel(self.num_classes)
+        elif name == "unet":
+            self.model = UNetModel(self.num_classes)
+
+    def forward(self, x):
+        logits = self.model(x)
+        return logits
+
+    def training_step(self, batch, batch_idx):
+        true_label = batch["anno"]
+        logits = self.forward(batch["data"])
+        loss = self.loss_fn(logits, true_label)
+
+        self.track_gradient_norms()
+        self.log("train:loss", loss)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        true_label = batch["anno"]
+        logits, probs, pred_label, _ = self.get_predictions(batch["data"])
+        loss = self.loss_fn(logits, true_label)
+
+        confusion_matrix = torchmetrics.functional.confusion_matrix(
+            pred_label, true_label, num_classes=self.num_classes, normalize=None
+        )
+        calibration_info = metrics.compute_calibration_info(
+            probs, true_label, num_bins=50
+        )
+
+        if batch_idx % self.vis_interval == 0:
+            self.visualize_step(batch)
+
+        self.log("validation:loss", loss, prog_bar=True)
+        return {
+            "conf_matrix": confusion_matrix,
+            "loss": loss,
+            "calibration_info": calibration_info,
+        }
+
+    def test_step(self, batch, batch_idx):
+        true_label = batch["anno"]
+        logits, probs, pred_label, _ = self.get_predictions(batch["data"])
+        loss = self.loss_fn(logits, true_label)
+
+        confusion_matrix = torchmetrics.functional.confusion_matrix(
+            pred_label, true_label, num_classes=self.num_classes, normalize=None
+        )
+        calibration_info = metrics.compute_calibration_info(
+            probs, true_label, num_bins=50
+        )
+        self.log("test:loss", loss, prog_bar=True)
+        return {
+            "conf_matrix": confusion_matrix,
+            "loss": loss,
+            "calibration_info": calibration_info,
+        }
+
+    def visualize_step(self, batch):
+        self.vis_step += 1
+        true_label = batch["anno"]
+        logits, probs, pred_label, unc = self.get_predictions(batch["data"])
+
+        self.plot_predictions(
+            batch["data"],
+            pred_label,
+            probs,
+            true_label,
+            stage="Validation",
+            step=self.vis_step,
+            uncertainties=unc,
+        )
+
+    @torch.no_grad()
+    def get_predictions(self, data):
+        self.model.eval()
+        logits = self.forward(data)
+        probs = self.softmax(logits)
+        _, pred_label = torch.max(probs, dim=1)
+
+        unc = -torch.sum(probs * torch.log(probs + 10 ** (-8)), dim=1) / torch.log(
+            torch.tensor(self.num_classes)
+        )
+
+        return logits, probs, pred_label, unc
 
 
 class AleatoricNetwork(NetworkWrapper):
